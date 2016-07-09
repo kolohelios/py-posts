@@ -246,7 +246,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(post.title, 'Example Post')
         self.assertEqual(post.body, 'Just a test')
         
-    def test_unsupported_mimetype(self):
+    def test_post_unsupported_mimetype(self):
         data = '<xml></xml>'
         response = self.client.post('/api/posts',
             data = json.dumps(data),
@@ -261,7 +261,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(data['message'],
             'Request must contain application/json data')
             
-    def test_invalid_data(self):
+    def test_post_invalid_data(self):
         ''' posting a post with an invalid body '''
         data = {
             'title': 'Example Post',
@@ -279,13 +279,124 @@ class TestAPI(unittest.TestCase):
         data = json.loads(response.data.decode('ascii'))
         self.assertEqual(data['message'], '32 is not of type \'string\'')
         
-    def test_missing_data(self):
+    def test_post_missing_data(self):
         ''' posting a post with a missing body '''
         data = {
             'title': 'Example Post',
         }
         
         response = self.client.post('/api/posts',
+            data = json.dumps(data),
+            content_type = 'application/json',
+            headers = [('Accept', 'application/json')]
+        )
+        
+        self.assertEqual(response.status_code, 422)
+        
+        data = json.loads(response.data.decode('ascii'))
+        self.assertEqual(data['message'], '\'body\' is a required property')
+        
+    def test_post_put(self):
+        ''' putting a post '''
+        
+        # first we need to create a post to update
+        data = {
+            'title': 'Example Post',
+            'body': 'Just a test'
+        }
+        
+        response = self.client.post('/api/posts',
+            data = json.dumps(data),
+            content_type = 'application/json',
+            headers = [('Accept', 'application/json')]
+        )
+        
+        data = {
+            'title': 'Changed Title',
+            'body': 'And changed body.'
+        }
+        
+        response = self.client.put('/api/posts/1',
+            data = json.dumps(data),
+            content_type = 'application/json',
+            headers = [('Accept', 'application/json')]
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'application/json')
+        self.assertEqual(urlparse(response.headers.get('Location')).path,
+            '/api/posts/1')
+        
+        data = json.loads(response.data.decode('ascii'))
+        self.assertEqual(data['id'], 1)
+        self.assertEqual(data['title'], 'Changed Title')
+        self.assertEqual(data['body'], 'And changed body.')
+        
+        posts = session.query(models.Post).all()
+        self.assertEqual(len(posts), 1)
+        
+        post = posts[0]
+        self.assertEqual(post.title, 'Changed Title')
+        self.assertEqual(post.body, 'And changed body.')
+        
+    def test_post_put_with_nonexistent_id(self):
+        data = {
+            'title': 'Changed Title',
+            'body': 'And changed body.'
+        }
+        
+        response = self.client.put('/api/posts/1',
+            data = json.dumps(data),
+            content_type = 'application/json',
+            headers = [('Accept', 'application/json')]
+        )
+        
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.mimetype, 'application/json')
+        
+        data = json.loads(response.data.decode('ascii'))
+        self.assertEqual(data['message'], 'Could not find post with id 1')
+        
+    def test_put_unsupported_mimetype(self):
+        data = '<xml></xml>'
+        response = self.client.put('/api/posts/1',
+            data = json.dumps(data),
+            content_type = 'application/xml',
+            headers = [('Accept', 'application/json')]
+        )
+        
+        self.assertEqual(response.status_code, 415)
+        self.assertEqual(response.mimetype, 'application/json')
+        
+        data = json.loads(response.data.decode('ascii'))
+        self.assertEqual(data['message'],
+            'Request must contain application/json data')
+            
+    def test_put_invalid_data(self):
+        ''' putting a post with an invalid body '''
+        data = {
+            'title': 'Example Post',
+            'body': 32
+        }
+        
+        response = self.client.put('/api/posts/1',
+            data = json.dumps(data),
+            content_type = 'application/json',
+            headers = [('Accept', 'application/json')]
+        )
+
+        self.assertEqual(response.status_code, 422)
+        
+        data = json.loads(response.data.decode('ascii'))
+        self.assertEqual(data['message'], '32 is not of type \'string\'')
+        
+    def test_put_missing_data(self):
+        ''' posting a post with a missing body '''
+        data = {
+            'title': 'Example Post',
+        }
+        
+        response = self.client.put('/api/posts/1',
             data = json.dumps(data),
             content_type = 'application/json',
             headers = [('Accept', 'application/json')]

@@ -100,3 +100,37 @@ def posts_post():
     data = json.dumps(post.as_dictionary())
     headers = {'Location': url_for('post_get', id = post.id)}
     return Response(data, 201, headers = headers, mimetype = 'application/json')
+    
+@app.route('/api/posts/<int:id>', methods = ['PUT'])
+@decorators.accept('application/json')
+@decorators.require('application/json')
+def posts_put(id):
+    ''' update an existing post '''
+    data = request.json
+    
+    # check that the JSON supplied is valid
+    # if not you return a 422 Unprocessable Entity
+    try:
+        validate(data, post_schema)
+    except ValidationError as error:
+        data = {'message': error.message}
+        return Response(json.dumps(data), 422, mimetype = 'application/json')
+    
+    # retrieve the post and return error if it does not exist
+    post = session.query(models.Post).get(id)
+    
+    if not post:
+        message = 'Could not find post with id {}'.format(id)
+        data = json.dumps({'message': message})
+        return Response(data, 404, mimetype = 'application/json')
+        
+    # update the post
+    post.title = data['title']
+    post.body = data['body']
+    session.commit()
+    
+    # return a 200 OK, containing the post as JSON and with the
+    # Location header set to the location of the post
+    data = json.dumps(post.as_dictionary())
+    headers = {'Location': url_for('post_get', id = post.id)}
+    return Response(data, 200, headers = headers, mimetype = 'application/json')
