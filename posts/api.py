@@ -70,6 +70,7 @@ def post_delete(id):
         return Response(data, 404, mimetype = 'application/json')
     
     session.delete(post)
+    session.commit()
     
     message = 'Successfully deleted post with id {}'.format(id)
     data = json.dumps({'message': message})
